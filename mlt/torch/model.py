@@ -146,9 +146,12 @@ class TestResult:
             self.class_total[label] += 1
 
     def __str__(self):
-        return f'Test Loss: {self.total_loss()} \n' \
-            f'Test Accuracy: {self.accuracy()}\n' \
-            f'Class Accuracy: {self.class_accuracy()}'
+        nl = '\n'
+        return f'Test Size: {np.sum(self.class_total)} \n' \
+            f'Test Loss: {self.total_loss()} \n' \
+            f'Test Accuracy: {self.accuracy()} \n' \
+            f'Class Accuracy: \n' \
+            f'{nl.join([f"{kls}: {acc}" for kls, acc in self.class_accuracy()])}'
 
 
 def test(model: nn.Module, classes: int, dataloader: data.DataLoader, loss_fn):
