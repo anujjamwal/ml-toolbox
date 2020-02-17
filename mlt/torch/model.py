@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from torch import nn, optim
 from torch.utils import data
 
@@ -108,3 +109,60 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
                f'Validation Loss: {state["validation_loss"]} | Validation Accuracy: {state["validation_accuracy"]}')
 
     return res
+
+
+class TestResult:
+    def __init__(self, classes):
+        self.classes = classes
+        self.loss = 0
+        self.class_correct = [0] * classes
+        self.class_total = [0] * classes
+        self.frozen = False
+
+    def freeze(self):
+        self.frozen = True
+
+    def total_loss(self):
+        return self.loss / np.sum(self.class_total)
+
+    def accuracy(self):
+        return 100. * np.sum(self.class_correct) / np.sum(self.class_total)
+
+    def class_accuracy(self):
+        return [(i, 100 * self.class_correct[i] / self.class_total[i]) for i in range(self.classes)]
+
+    def record(self, data, labels, output, loss):
+        if self.frozen:
+            raise PermissionError("Cannot modify frozen result")
+
+        self.loss += loss.item() * data.size(0)
+        _, pred = torch.max(output, 1)
+
+        correct = np.squeeze(pred.eq(labels.data.view_as(pred)))
+
+        for i in range(len(labels)):
+            label = labels.data[i]
+            self.class_correct[label] += correct[i].item()
+            self.class_total[label] += 1
+
+    def __str__(self):
+        return f'Test Loss: {self.total_loss()} \n' \
+            f'Test Accuracy: {self.accuracy()}\n' \
+            f'Class Accuracy: {self.class_accuracy()}'
+
+
+def test(model: nn.Module, classes: int, dataloader: data.DataLoader, loss_fn):
+    model.eval()
+
+    result = TestResult(classes)
+
+    with torch.no_grad():
+        for data, labels in dataloader:
+            output = model(data)
+            loss = loss_fn(output, labels)
+
+            result.record(data, labels, output, loss)
+
+    result.freeze()
+
+    return result
