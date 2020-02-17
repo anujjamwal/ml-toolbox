@@ -13,7 +13,7 @@ class TrainingResult:
 
 class Recorder(object):
     def __init__(self):
-        self.checkpoints = []
+        self.checkpoints = list()
 
     def record(self, data):
         self.checkpoints.append(data)
@@ -53,7 +53,7 @@ def train(model: nn.Module, trainset: data.DataLoader,
             optimizer.step()
 
         state = dict(epoch=epoch, train_loss=train_loss / len(trainset), state_dict=model.state_dict())
-        res.recorder().record(epoch, state)
+        res.recorder().record(state)
         logger(f'EPOCH: {epoch + 1}/{epochs} | Training Loss: {state["train_loss"]}')
 
     return res
