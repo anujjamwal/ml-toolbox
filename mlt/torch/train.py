@@ -15,8 +15,8 @@ class Recorder(object):
     def __init__(self):
         self.checkpoints = []
 
-    def record(self, epoch, data):
-        self.checkpoints[epoch] = data
+    def record(self, data):
+        self.checkpoints.append(data)
 
     def __len__(self):
         return len(self.checkpoints)
@@ -52,7 +52,7 @@ def train(model: nn.Module, trainset: data.DataLoader,
             loss.backward()
             optimizer.step()
 
-        state = dict(train_loss=train_loss / len(trainset), state_dict=model.state_dict())
+        state = dict(epoch=epoch, train_loss=train_loss / len(trainset), state_dict=model.state_dict())
         res.recorder().record(epoch, state)
         logger(f'EPOCH: {epoch + 1}/{epochs} | Training Loss: {state["train_loss"]}')
 
@@ -97,11 +97,13 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
                 val_loss += loss_fn(output, labels).item() * data.size(0)
                 val_correct += torch.max(output, dim=1)[1].view(labels.size()).eq(labels).sum().item()
 
-        state = dict(train_loss=train_loss / len(trainset),
+        state = dict(epoch=epoch,
+                     train_loss=train_loss / len(trainset),
                      validation_loss=val_loss / len(valset),
                      validation_accuracy=val_correct / len(valset),
                      state_dict=model.state_dict())
-        res.recorder().record(epoch, state)
+
+        res.recorder().record(state)
         logger(f'EPOCH: {epoch + 1}/{epochs} | Training Loss: {state["train_loss"]} | '
                f'Validation Loss: {state["validation_loss"]} | Validation Accuracy: {state["validation_accuracy"]}')
 
