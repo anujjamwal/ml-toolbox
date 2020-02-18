@@ -89,8 +89,7 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
         model.train()
         train_loss = 0.0
         for data, labels in trainset:
-            data.to(device)
-            labels.to(device)
+            data, labels = data.to(device), labels.to(device)
 
             optimizer.zero_grad()
             output = model(data)
@@ -171,8 +170,7 @@ def test(model: nn.Module, dataloader: data.DataLoader, loss_fn, device=torch.de
 
     with torch.no_grad():
         for data, labels in dataloader:
-            data.to(device)
-            labels.to(device)
+            data,labels = data.to(device), labels.to(device)
 
             output = model(data)
             loss = loss_fn(output, labels)
