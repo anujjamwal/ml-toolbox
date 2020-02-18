@@ -27,7 +27,7 @@ class Recorder(object):
 
 
 def train(model: nn.Module, trainset: data.DataLoader,
-          loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5, logger=print):
+          loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5, logger=print, device=torch.device("cpu")):
     """
     The function runs a simple training on model. The training executes for the provided epochs.
     :param model: PyTorch Model to train
@@ -36,15 +36,21 @@ def train(model: nn.Module, trainset: data.DataLoader,
     :param optim: Optimizer Function.
     :param epochs: Number of Epochs to run the training for.
     :param logger: function to log progress.
+    :param device: torch device to run on
     :return: TrainingResult
     """
     res = TrainingResult()
+
+    model.to(device)
 
     model.train()
     optimizer = optim(model.parameters())
     for epoch in range(epochs):
         train_loss = 0.0
         for data, labels in trainset:
+            data.to(device)
+            labels.to(device)
+
             optimizer.zero_grad()
             output = model(data)
             loss = loss_fn(output, labels)
@@ -62,7 +68,7 @@ def train(model: nn.Module, trainset: data.DataLoader,
 
 def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: data.DataLoader,
                           loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5,
-                          logger=print):
+                          logger=print, device=torch.device("cpu")):
     """
     The function runs a simple training on model. The training executes for the provided epochs.
     :param model: PyTorch Model to train
@@ -76,11 +82,16 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
     """
     res = TrainingResult()
 
+    model.to(device)
+
     optimizer = optim(model.parameters())
     for epoch in range(epochs):
         model.train()
         train_loss = 0.0
         for data, labels in trainset:
+            data.to(device)
+            labels.to(device)
+
             optimizer.zero_grad()
             output = model(data)
             loss = loss_fn(output, labels)
@@ -152,13 +163,17 @@ class TestResult:
             f'{nl.join([f"{kls}: {acc}" for kls, acc in self.class_accuracy()])}'
 
 
-def test(model: nn.Module, dataloader: data.DataLoader, loss_fn):
+def test(model: nn.Module, dataloader: data.DataLoader, loss_fn, device=torch.device("cpu")):
+    model.to(device)
     model.eval()
 
     result = TestResult()
 
     with torch.no_grad():
         for data, labels in dataloader:
+            data.to(device)
+            labels.to(device)
+
             output = model(data)
             loss = loss_fn(output, labels)
 
