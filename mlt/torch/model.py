@@ -98,7 +98,7 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
             loss.backward()
             optimizer.step()
 
-        testResult = test(model, valset, loss_fn=loss_fn)
+        testResult = test(model, valset, loss_fn=loss_fn, device=device)
 
         state = dict(epoch=epoch,
                      train_loss=train_loss / len(trainset),
