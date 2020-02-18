@@ -108,23 +108,22 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
 class TestResult:
     def __init__(self):
         self.loss = 0
-        self.classes = list()
-        self.class_correct = list()
-        self.class_total = list()
         self.frozen = False
+        self.class_correct = list()
+        self.class_count = list()
 
     def freeze(self):
         self.frozen = True
 
     def total_loss(self):
-        return self.loss / np.sum(self.class_total)
+        return self.loss / np.sum(self.class_count)
 
     def accuracy(self):
-        return 100. * np.sum(self.class_correct) / np.sum(self.class_total)
+        return 100. * np.sum(self.class_correct) / np.sum(self.class_count)
 
     def class_accuracy(self):
-        return [(i, 100 * correct / total) for i, (correct, total) in
-                enumerate(zip(self.class_correct, self.class_total))]
+        return dict([(idx, 100. * correct / total) for idx, (correct, total) in
+                     enumerate(zip(self.class_correct, self.class_count))])
 
     def record(self, data, labels, output, loss):
         if self.frozen:
@@ -133,21 +132,20 @@ class TestResult:
         self.loss += loss.item() * data.size(0)
         _, pred = torch.max(output, 1)
 
-        correct = np.squeeze(pred.eq(labels.data.view_as(pred)))
+        correct_pred = np.squeeze(pred.eq(labels.data.view_as(pred)))
 
-        for i in range(len(labels)):
-            label = labels.data[i]
+        for idx in labels:
+            if len(self.class_correct) < idx + 1:
+                delta = idx - len(self.class_correct) + 1
+                self.class_correct += [0] * delta
+                self.class_count += [0] * delta
 
-            if len(self.class_correct) <= label:
-                self.class_correct += [0] * (label - len(self.class_correct) + 1)
-                self.class_total += [0] * (label - len(self.class_correct) + 1)
-
-            self.class_correct[label] += correct[i].item()
-            self.class_total[label] += 1
+            self.class_correct[idx] += correct_pred[idx].item()
+            self.class_count[idx] += 1
 
     def __str__(self):
         nl = '\n'
-        return f'Test Size: {np.sum(self.class_total)} \n' \
+        return f'Test Size: {np.sum(self.class_count)} \n' \
             f'Test Loss: {self.total_loss()} \n' \
             f'Test Accuracy: {self.accuracy()} \n' \
             f'Class Accuracy: \n' \
