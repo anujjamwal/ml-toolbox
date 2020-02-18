@@ -48,8 +48,7 @@ def train(model: nn.Module, trainset: data.DataLoader,
     for epoch in range(epochs):
         train_loss = 0.0
         for data, labels in trainset:
-            data.to(device)
-            labels.to(device)
+            data, labels = data.to(device), labels.to(device)
 
             optimizer.zero_grad()
             output = model(data)
