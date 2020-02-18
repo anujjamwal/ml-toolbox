@@ -122,8 +122,8 @@ class TestResult:
         return 100. * np.sum(self.class_correct) / np.sum(self.class_count)
 
     def class_accuracy(self):
-        return dict([(idx, 100. * correct / total) for idx, (correct, total) in
-                     enumerate(zip(self.class_correct, self.class_count))])
+        return [(idx, 100. * correct / total) for idx, (correct, total) in
+                     enumerate(zip(self.class_correct, self.class_count))]
 
     def record(self, data, labels, output, loss):
         if self.frozen:
