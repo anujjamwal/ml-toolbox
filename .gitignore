@@ -1,0 +1,6 @@
+.idea
+*.egg-info
+bdist
+.DS_Store
+*.iml
+*.pyc

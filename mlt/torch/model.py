@@ -80,8 +80,6 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
     for epoch in range(epochs):
         model.train()
         train_loss = 0.0
-        val_loss = 0.0
-        val_correct = 0
         for data, labels in trainset:
             optimizer.zero_grad()
             output = model(data)
@@ -91,17 +89,13 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
             loss.backward()
             optimizer.step()
 
-        model.eval()
-        with torch.no_grad():
-            for data, labels in valset:
-                output = model(data)
-                val_loss += loss_fn(output, labels).item() * data.size(0)
-                val_correct += torch.max(output, dim=1)[1].view(labels.size()).eq(labels).sum().item()
+        testResult = test(model, valset, loss_fn=loss_fn)
 
         state = dict(epoch=epoch,
                      train_loss=train_loss / len(trainset),
-                     validation_loss=val_loss / len(valset),
-                     validation_accuracy=val_correct / len(valset),
+                     validation_loss=testResult.total_loss(),
+                     validation_accuracy=testResult.accuracy(),
+                     validation_result=testResult,
                      state_dict=model.state_dict())
 
         res.recorder().record(state)
@@ -112,11 +106,11 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
 
 
 class TestResult:
-    def __init__(self, classes):
-        self.classes = classes
+    def __init__(self):
         self.loss = 0
-        self.class_correct = [0] * classes
-        self.class_total = [0] * classes
+        self.classes = list()
+        self.class_correct = list()
+        self.class_total = list()
         self.frozen = False
 
     def freeze(self):
@@ -129,7 +123,8 @@ class TestResult:
         return 100. * np.sum(self.class_correct) / np.sum(self.class_total)
 
     def class_accuracy(self):
-        return [(i, 100 * self.class_correct[i] / self.class_total[i]) for i in range(self.classes)]
+        return [(i, 100 * correct / total) for i, (correct, total) in
+                enumerate(zip(self.class_correct, self.class_total))]
 
     def record(self, data, labels, output, loss):
         if self.frozen:
@@ -142,6 +137,11 @@ class TestResult:
 
         for i in range(len(labels)):
             label = labels.data[i]
+
+            if len(self.class_correct) <= label:
+                self.class_correct += [0] * (label - len(self.class_correct) + 1)
+                self.class_total += [0] * (label - len(self.class_correct) + 1)
+
             self.class_correct[label] += correct[i].item()
             self.class_total[label] += 1
 
@@ -154,10 +154,10 @@ class TestResult:
             f'{nl.join([f"{kls}: {acc}" for kls, acc in self.class_accuracy()])}'
 
 
-def test(model: nn.Module, classes: int, dataloader: data.DataLoader, loss_fn):
+def test(model: nn.Module, dataloader: data.DataLoader, loss_fn):
     model.eval()
 
-    result = TestResult(classes)
+    result = TestResult()
 
     with torch.no_grad():
         for data, labels in dataloader:
