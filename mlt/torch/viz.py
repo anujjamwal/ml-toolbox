@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def show_conv2d_rgb(layer: torch.nn.Conv2d, fig_num_cols=10):
+def show_conv2d_weights_rgb(layer: torch.nn.Conv2d, fig_num_cols=10):
     weights = layer.weight.data.cpu()
     num_kernels = weights.shape[0]
 
@@ -25,7 +25,7 @@ def show_conv2d_rgb(layer: torch.nn.Conv2d, fig_num_cols=10):
     plt.show()
 
 
-def show_conv2d(layer: torch.nn.Conv2d, fig_num_cols=10):
+def show_conv2d_weights(layer: torch.nn.Conv2d, fig_num_cols=10):
     weights = layer.weight.data.cpu()
     num_kernels = weights.shape[0] * weights.shape[1]
 
@@ -48,4 +48,18 @@ def show_conv2d(layer: torch.nn.Conv2d, fig_num_cols=10):
             ax1.set_yticklabels([])
 
     plt.tight_layout()
+    plt.show()
+
+
+def show_conv2d_activation(model: torch.nn.Module, layer: torch.nn.Conv2d, input):
+    activation = {}
+
+    def hook(module, input, output):
+        activation['forward'] = output
+
+    layer.register_forward_hook(hook)
+
+    model(input)
+
+    plt.imshow(activation['forward'])
     plt.show()
