@@ -2,6 +2,8 @@ import torch
 import matplotlib.pyplot as plt
 import numpy as np
 
+from mlt.torch.utils import denormalize
+
 
 def show_conv2d_weights_rgb(layer: torch.nn.Conv2d, fig_num_cols=10):
     weights = layer.weight.data.cpu()
@@ -51,15 +53,35 @@ def show_conv2d_weights(layer: torch.nn.Conv2d, fig_num_cols=10):
     plt.show()
 
 
-def show_conv2d_activation(model: torch.nn.Module, layer: torch.nn.Conv2d, input):
+def show_conv2d_activation(model: torch.nn.Module, layer: torch.nn.Conv2d, input, fig_num_cols=10):
     activation = {}
 
     def hook(module, input, output):
-        activation['forward'] = output
+        activation['forward'] = output.detach().numpy()
 
     layer.register_forward_hook(hook)
 
     model(input)
 
-    plt.imshow(activation['forward'])
+    num_rows = activation['forward'].shape[1] // fig_num_cols + 1
+
+    fig = plt.figure(figsize=(fig_num_cols, num_rows))
+
+    for i in range(activation['forward'].shape[1]):
+        ax1 = fig.add_subplot(num_rows, fig_num_cols, i+1)
+        npimg = np.array(activation['forward'][0, i], np.float32)
+        npimg = (npimg - np.mean(npimg)) / np.std(npimg)
+        npimg = np.minimum(1, np.maximum(0, (npimg + 0.5)))
+        ax1.imshow(npimg, cmap="gray")
+        ax1.set_title(str(i))
+        ax1.axis('off')
+        ax1.set_xticklabels([])
+        ax1.set_yticklabels([])
+
+    plt.tight_layout()
     plt.show()
+
+
+def show_normalised_image(image, mean, sd):
+    i = denormalize(image, mean, sd)
+    plt.imshow(i.permute(1, 2, 0))
