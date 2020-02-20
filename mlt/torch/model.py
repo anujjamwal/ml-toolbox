@@ -53,7 +53,7 @@ def train(model: nn.Module, trainset: data.DataLoader,
             optimizer.zero_grad()
             output = model(data)
             loss = loss_fn(output, labels)
-            train_loss += loss.item() * data.size(0)
+            train_loss += loss.detach().item() * data.size(0)
 
             loss.backward()
             optimizer.step()
@@ -93,7 +93,7 @@ def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: d
             optimizer.zero_grad()
             output = model(data)
             loss = loss_fn(output, labels)
-            train_loss += loss.item() * data.size(0)
+            train_loss += loss.detach().item() * data.size(0)
 
             loss.backward()
             optimizer.step()
@@ -172,9 +172,9 @@ def test(model: nn.Module, dataloader: data.DataLoader, loss_fn, device=torch.de
             data,labels = data.to(device), labels.to(device)
 
             output = model(data)
-            loss = loss_fn(output, labels)
+            loss = loss_fn(output, labels).detach()
 
-            result.record(data, labels, output, loss)
+            result.record(data, labels, output.detach(), loss)
 
     result.freeze()
 
