@@ -26,8 +26,9 @@ class Recorder(object):
         return self.checkpoints[item]
 
 
-def train(model: nn.Module, trainset: data.DataLoader,
-          loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5, logger=print, device=torch.device("cpu")):
+def train_with_recorder(model: nn.Module, trainset: data.DataLoader,
+                        loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5, logger=print,
+                        device=torch.device("cpu")):
     """
     The function runs a simple training on model. The training executes for the provided epochs.
     :param model: PyTorch Model to train
@@ -65,9 +66,9 @@ def train(model: nn.Module, trainset: data.DataLoader,
     return res
 
 
-def train_with_validation(model: nn.Module, trainset: data.DataLoader, valset: data.DataLoader,
-                          loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5,
-                          logger=print, device=torch.device("cpu")):
+def train_validate_with_recorder(model: nn.Module, trainset: data.DataLoader, valset: data.DataLoader,
+                                 loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5,
+                                 logger=print, device=torch.device("cpu")):
     """
     The function runs a simple training on model. The training executes for the provided epochs.
     :param model: PyTorch Model to train
@@ -132,7 +133,7 @@ class TestResult:
 
     def class_accuracy(self):
         return [(idx, 100. * correct / total) for idx, (correct, total) in
-                     enumerate(zip(self.class_correct, self.class_count))]
+                enumerate(zip(self.class_correct, self.class_count))]
 
     def record(self, data, labels, output, loss):
         if self.frozen:
@@ -161,7 +162,7 @@ class TestResult:
             f'{nl.join([f"{kls}: {acc}" for kls, acc in self.class_accuracy()])}'
 
 
-def test(model: nn.Module, dataloader: data.DataLoader, loss_fn, device=torch.device("cpu")):
+def test_with_recorder(model: nn.Module, dataloader: data.DataLoader, loss_fn, device=torch.device("cpu")):
     model.to(device)
     model.eval()
 
@@ -169,7 +170,7 @@ def test(model: nn.Module, dataloader: data.DataLoader, loss_fn, device=torch.de
 
     with torch.no_grad():
         for data, labels in dataloader:
-            data,labels = data.to(device), labels.to(device)
+            data, labels = data.to(device), labels.to(device)
 
             output = model(data)
             loss = loss_fn(output, labels).detach()
@@ -179,3 +180,97 @@ def test(model: nn.Module, dataloader: data.DataLoader, loss_fn, device=torch.de
     result.freeze()
 
     return result
+
+
+def train_validate(model: nn.Module, trainset: data.DataLoader, valset: data.DataLoader,
+                   loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5,
+                   logger=print, device=torch.device("cpu"), path="model"):
+    """
+    The function runs a simple training on model. The training executes for the provided epochs.
+    :param model: PyTorch Model to train
+    :param trainset: torch.utils.data.DataLoader. Represents the training dataset.
+    :param valset: torch.utils.data.DataLoader. Represents the validation dataset.
+    :param loss_fn: Loss Function.
+    :param optim: Optimizer Function.
+    :param epochs: Number of Epochs to run the training for.
+    :param logger: function to log progress.
+    :return: TrainingResult
+    """
+    acc = AccuracyRecorder()
+
+    accuracy = -np.Inf
+    model.to(device)
+    optimizer = optim(model.parameters())
+
+    for epoch in range(epochs):
+        model.train()
+        train_loss = 0.0
+        count = 0
+        for data, labels in trainset:
+            count += 1
+            data, labels = data.to(device), labels.to(device)
+
+            optimizer.zero_grad()
+            output = model(data)
+            loss = loss_fn(output, labels)
+            train_loss += loss.detach().item()
+
+            loss.backward()
+            optimizer.step()
+
+        model.eval()
+        test_count = 0
+        test_loss = 0
+        with torch.no_grad():
+            test_count += 1
+            for data, labels in valset:
+                output = model(data.to(device))
+                loss = loss_fn(output, labels.to(device)).item()
+                test_loss += loss
+
+                acc.record(labels.cpu(), output.detach().cpu())
+
+        state = dict(
+            epoch=epoch,
+            train_loss=train_loss / count,
+            validation_loss=test_loss / test_count,
+            validation_accuracy=acc.accuracy(),
+            validation_result=acc.class_accuracy(),
+        )
+
+        if accuracy < acc.accuracy():
+            accuracy = acc.accuracy()
+            logger(f"Saving model for accuracy {accuracy}")
+            torch.save(model, f'{path}/model-{accuracy}.pt')
+
+        logger(f'EPOCH: {epoch + 1}/{epochs} | Training Loss: {state["train_loss"]} | '
+               f'Validation Loss: {state["validation_loss"]} | Validation Accuracy: {state["validation_accuracy"]} | '
+               f'Validation Class Accuracy: {state["validation_result"]}')
+
+
+class AccuracyRecorder(object):
+
+    def __init__(self):
+        self.class_correct = []
+        self.class_count = []
+
+    def accuracy(self):
+        return 100. * np.sum(self.class_correct) / np.sum(self.class_count)
+
+    def class_accuracy(self):
+        return [(idx, 100. * correct / total) for idx, (correct, total) in
+                enumerate(zip(self.class_correct, self.class_count))]
+
+    def record(self, labels, output):
+        _, pred = torch.max(output, 1)
+
+        correct_pred = np.squeeze(pred.eq(labels.data.view_as(pred)))
+
+        for idx in labels:
+            if len(self.class_correct) < idx + 1:
+                delta = idx - len(self.class_correct) + 1
+                self.class_correct += [0] * delta
+                self.class_count += [0] * delta
+
+            self.class_correct[idx] += correct_pred[idx].item()
+            self.class_count[idx] += 1
