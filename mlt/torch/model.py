@@ -184,9 +184,14 @@ def test_with_recorder(model: nn.Module, dataloader: data.DataLoader, loss_fn, d
 
 def train_validate(model: nn.Module, trainset: data.DataLoader, valset: data.DataLoader,
                    loss_fn=nn.CrossEntropyLoss(), optim=optim.Adam, epochs=5,
-                   logger=print, device=torch.device("cpu"), path="model"):
+                   logger=print, device=torch.device("cpu"), path="model",
+                   on_epoch_start=lambda x: x, on_epoch_end=lambda x: x):
     """
     The function runs a simple training on model. The training executes for the provided epochs.
+    :param on_epoch_end:
+    :param on_epoch_start:
+    :param path:
+    :param device:
     :param model: PyTorch Model to train
     :param trainset: torch.utils.data.DataLoader. Represents the training dataset.
     :param valset: torch.utils.data.DataLoader. Represents the validation dataset.
@@ -203,6 +208,8 @@ def train_validate(model: nn.Module, trainset: data.DataLoader, valset: data.Dat
     optimizer = optim(model.parameters())
 
     for epoch in range(epochs):
+        on_epoch_start(epoch)
+
         model.train()
         train_loss = 0.0
         count = 0
@@ -243,6 +250,7 @@ def train_validate(model: nn.Module, trainset: data.DataLoader, valset: data.Dat
             logger(f"Saving model for accuracy {accuracy}")
             torch.save(model, f'{path}/model-{accuracy}.pt')
 
+        on_epoch_end(state)
         logger(f'EPOCH: {epoch + 1}/{epochs} | Training Loss: {state["train_loss"]} | '
                f'Validation Loss: {state["validation_loss"]} | Validation Accuracy: {state["validation_accuracy"]} | '
                f'Validation Class Accuracy: {state["validation_result"]}')
