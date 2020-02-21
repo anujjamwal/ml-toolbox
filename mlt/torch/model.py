@@ -203,7 +203,7 @@ def train_validate(model: nn.Module, trainset: data.DataLoader, valset: data.Dat
     """
     acc = AccuracyRecorder()
 
-    accuracy = -np.Inf
+    best_loss = np.Inf
     model.to(device)
     optimizer = optim(model.parameters())
 
@@ -245,10 +245,10 @@ def train_validate(model: nn.Module, trainset: data.DataLoader, valset: data.Dat
             validation_result=acc.class_accuracy(),
         )
 
-        if accuracy < acc.accuracy():
-            accuracy = acc.accuracy()
-            logger(f"Saving model for accuracy {accuracy}")
-            torch.save(model, f'{path}/model-{accuracy}.pt')
+        if best_loss > state["validation_loss"]:
+            best_loss = state["validation_loss"]
+            logger(f"Saving model for loss {best_loss} accuracy {acc.accuracy()}")
+            torch.save(model, f'{path}/model-{acc.accuracy()}.pt')
 
         on_epoch_end(state)
         logger(f'EPOCH: {epoch + 1}/{epochs} | Training Loss: {state["train_loss"]} | '
